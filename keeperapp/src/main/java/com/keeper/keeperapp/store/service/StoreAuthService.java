@@ -1,7 +1,9 @@
 package com.keeper.keeperapp.store.service;
 
+import com.keeper.keeperapp.auth.jwt.JwtTokenProvider;
 import com.keeper.keeperapp.store.domain.Store;
 import com.keeper.keeperapp.store.dto.LoginRequest;
+import com.keeper.keeperapp.store.dto.LoginResponse;
 import com.keeper.keeperapp.store.dto.StoreSignupRequest;
 import com.keeper.keeperapp.store.repository.StoreRepository;
 import lombok.RequiredArgsConstructor;
@@ -14,6 +16,7 @@ public class StoreAuthService {
 
     private final StoreRepository storeRepository;
     private final PasswordEncoder passwordEncoder;
+    private final JwtTokenProvider jwtTokenProvider;
 
     public void signup(StoreSignupRequest request) {
         if (storeRepository.findByEmail(request.getEmail()).isPresent()) {
@@ -37,12 +40,19 @@ public class StoreAuthService {
         storeRepository.save(store);
     }
 
-    public void login(LoginRequest request) {
+    public LoginResponse login(LoginRequest request) {
         Store store = storeRepository.findByEmail(request.getEmail())
-                .orElseThrow(() -> new IllegalArgumentException("등록되지 않는 이메일입니다."));
+                .orElseThrow(() -> new RuntimeException("존재하지 않는 이메일입니다."));
 
         if (!passwordEncoder.matches(request.getPassword(), store.getPassword())) {
-            throw new IllegalArgumentException("비밀번호가 일치하지 않습니다.");
+            throw new RuntimeException("비밀번호가 일치하지 않습니다.");
         }
+
+        String token = jwtTokenProvider.createToken(store.getEmail());
+
+        return new LoginResponse(token, store.getStoreName(),
+                store.getEmail(), store.getPhoneNumber(),
+                store.getStoreAddress(), store.getStoreDescription(),
+                store.getBusinessNumber(), store.getRepresentativeName());
     }
 }
